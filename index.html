@@ -1,0 +1,168 @@
+// Directory: /sewa-attendance
+
+// server.js
+const express = require('express');
+const bodyParser = require('body-parser');
+const path = require('path');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
+
+let users = [];
+let attendanceRecords = [];
+
+function hasMarkedToday(userId) {
+  const today = new Date().toISOString().split('T')[0];
+  return attendanceRecords.some(
+    record => record.userId === userId && record.date === today
+  );
+}
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/index.html'));
+});
+
+app.post('/login', (req, res) => {
+  const { district, block, name, phone } = req.body;
+  const user = users.find(
+    u => u.district === district && u.block === block && u.name === name && u.phone === phone
+  );
+  if (user) {
+    if (hasMarkedToday(user.id)) {
+      res.send(<h2>Welcome ${user.name}</h2><p>You have already marked attendance today.</p>);
+    } else {
+      res.redirect(/user/${user.id}/questions);
+    }
+  } else {
+    res.send('User not found. Please check your details.');
+  }
+});
+
+app.get('/user/:id/questions', (req, res) => {
+  const user = users.find(u => u.id === parseInt(req.params.id));
+  if (!user) {
+    return res.status(404).send('User not found');
+  }
+
+  res.sendFile(path.join(__dirname, 'public/questions.html'));
+});
+
+app.post('/user/:id/submit', (req, res) => {
+  const user = users.find(u => u.id === parseInt(req.params.id));
+  if (!user) {
+    return res.status(404).send('User not found');
+  }
+
+  if (!hasMarkedToday(user.id)) {
+    attendanceRecords.push({
+      userId: user.id,
+      date: new Date().toISOString().split('T')[0],
+      answers: req.body
+    });
+  }
+
+  res.send(<h2>Thank you, ${user.name}!</h2><p>Your attendance and answers have been recorded for today.</p>);
+});
+
+app.get('/admin', (req, res) => {
+  res.send('<h1>Admin Panel</h1><p>Here you can manage users and attendance.</p>');
+});
+
+app.post('/admin/add', (req, res) => {
+  const { district, block, name, phone } = req.body;
+  const newUser = { id: users.length + 1, district, block, name, phone };
+  users.push(newUser);
+  res.send(User ${name} added!);
+});
+
+app.listen(PORT, () => {
+  console.log(Sewa Attendance running at http://localhost:${PORT});
+});
+
+// public/index.html
+/*
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Sewa Attendance Login</title>
+</head>
+<body>
+  <h1>Login</h1>
+  <form method="POST" action="/login">
+    <label>District:</label><br>
+    <input type="text" name="district" required><br>
+
+    <label>Block:</label><br>
+    <input type="text" name="block" required><br>
+
+    <label>Name:</label><br>
+    <input type="text" name="name" required><br>
+
+    <label>Phone Number:</label><br>
+    <input type="text" name="phone" required><br>
+
+    <button type="submit">Login</button>
+  </form>
+</body>
+</html>
+*/
+
+// public/questions.html
+/*
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <title>सेवा विवरण</title>
+</head>
+<body>
+  <h1>कृपया अपना सेवा का विवरण दें</h1>
+  <form method="POST">
+    <label>1. आज अपने YOUTUBE पर कितने LIKES की सेवा की:</label><br>
+    <input type="number" name="youtube_likes" required><br>
+
+    <label>2. YOUTUBE पर SUBSCRIBE सेवा:</label><br>
+    <input type="number" name="youtube_subscribe" required><br>
+
+    <label>3. FACEBOOK पर पोस्ट सेवा:</label><br>
+    <input type="number" name="facebook_posts" required><br>
+
+    <label>4. X पर ट्वीट सेवा:</label><br>
+    <input type="number" name="x_tweets" required><br>
+
+    <label>5. X पर रीट्वीट सेवा:</label><br>
+    <input type="number" name="x_retweets" required><br>
+
+    <label>6. INSTAGRAM पर पोस्ट सेवा:</label><br>
+    <input type="number" name="instagram_posts" required><br>
+
+    <label>7. THREAD पर सेवा:</label><br>
+    <input type="number" name="thread_service" required><br>
+
+    <label>8. SHARECHAT पर पोस्ट सेवा:</label><br>
+    <input type="number" name="sharechat_posts" required><br>
+
+    <label>9. Dailyhunt पर पोस्ट सेवा:</label><br>
+    <input type="number" name="dailyhunt_posts" required><br>
+
+    <label>10. PINTEREST पर पिन सेवा:</label><br>
+    <input type="number" name="pinterest_pins" required><br>
+
+    <label>11. LINKEDIN पर सेवा:</label><br>
+    <input type="number" name="linkedin_service" required><br>
+
+    <label>12. TUMBLR पर सेवा:</label><br>
+    <input type="number" name="tumblr_service" required><br>
+
+    <label>13. लाइव सत्संग सेवा (Check the sessions you attended):</label><br>
+    <input type="checkbox" name="live_satsang" value="06:00 A.M"> • 06:00 A.M<br>
+    <input type="checkbox" name="live_satsang" value="02:00 P.M"> • 02:00 P.M<br>
+    <input type="checkbox" name="live_satsang" value="07:30 P.M"> • 07:30 P.M<br>
+
+    <button type="submit">Submit</button>
+  </form>
+</body>
+</html>
+*/
